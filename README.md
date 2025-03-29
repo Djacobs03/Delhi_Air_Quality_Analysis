@@ -12,8 +12,7 @@ This project analyzes air pollution trends in Delhi using **R**. The focus is on
 
 - **📜 [R Script](http://rpubs.com/Djacobs/1290732)** - The codes that i used for data cleaning, visualization, and analysis. 
 - **📑 [R Markdown](http://rpubs.com/Djacobs/1290697)** - A structured report documenting the analysis.
-- **🌐 HTML Report (`report.html`)** - A rendered version of the findings.
-- **📊 Dataset (`delhi_air_quality.xlsx`)** - The raw air quality data used in this project.
+- **📊 [Dataset](Delhi_aqi.xlsx)** - The raw air quality data used in this project.
 
 ## Key Insights
 

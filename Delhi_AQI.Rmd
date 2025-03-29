@@ -1,0 +1,177 @@
+---
+title: "Delhi AQI Analysis"
+author: "Daniel Jacob"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## **1. Load Required Libraries**
+
+**Note:** This analysis requires the following R packages: `readxl`, `dplyr`, `ggplot2`, `tidyr`, `lubridate`, and `GGally`. Ensure they are installed before running the code.
+
+```{r load-packages}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(lubridate)
+library(GGally)
+```
+
+## **2. Load and Inspect Data**
+
+```{r load-data}
+data_aqi <- read_excel(file.choose()) 
+str(data_aqi)
+head(data_aqi)
+
+
+## **3. Convert Date Column**
+
+```{r convert-date}
+data_aqi <- data_aqi %>%
+  mutate(date = as.Date(date, format = "%Y-%m-%d"))
+```
+
+## **4. Check for Missing Values**
+
+```{r missing-values}
+colSums(is.na(data_aqi))
+```
+
+## **5. Detect Outliers**
+
+```{r detect-outliers}
+data_aqi %>%
+  summarise(across(where(is.numeric), ~ sum(abs(scale(.)) > 3, na.rm = TRUE)))
+```
+## Boxplot for Pollutant Distribution
+
+### Key Observations:
+1. **CO (Carbon Monoxide) has extreme outliers**  
+   - CO values go **above 20,000**, making it a major outlier.  
+   - Possible causes: **vehicular emissions, industrial activities, low wind speed trapping pollutants**.  
+
+2. **PM2.5 and PM10 also have many extreme values**  
+   - Indicating **high levels of fine particulate pollution**.  
+   - Likely linked to **winter smog, Diwali firecrackers, crop burning**.  
+
+3. **Other pollutants (NH3, NO, NO2, O3, SO2) show fewer but still significant outliers**.  
+
+## **6. Boxplot for Pollutant Distribution**
+
+```{r boxplot-pollutants}
+data_aqi %>%
+  pivot_longer(cols = -date, names_to = "pollutant", values_to = "value") %>%
+  ggplot(aes(x = pollutant, y = value)) +
+  geom_boxplot(outlier.color = "red") +
+  theme_minimal() +
+  labs(title = "Boxplot of Pollutants with Outliers Highlighted")
+```
+
+## **7. Log-Scaled Boxplot for Better Visualization**
+
+```{r log-boxplot}
+data_aqi_long <- data_aqi %>%
+  pivot_longer(cols = -date, names_to = "Pollutant", values_to = "Value")
+
+ggplot(data_aqi_long, aes(x = Pollutant, y = Value)) +
+  geom_boxplot(outlier.colour = "red", outlier.shape = 16, outlier.size = 2) +
+  scale_y_log10() +  
+  theme_minimal() +
+  labs(title = "Boxplot of Pollutants (Log-Scaled)", y = "Log-Scaled Value", x = "Pollutant") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## **8. PM2.5 Trend Over Time**
+
+```{r pm2.5-trend}
+data_aqi %>%
+  ggplot(aes(x = date, y = pm2_5)) +
+  geom_line(color = "red") +
+  geom_smooth(method = "loess", color = "blue") +
+  geom_vline(xintercept = as.Date(c("2021-11-01", "2022-01-01", "2022-11-01", "2023-01-01")), 
+             linetype = "dashed", color = "black") +
+  labs(title = "Delhi PM2.5 Trend Over Time with Key Pollution Peaks", 
+       x = "Date", y = "PM2.5 Levels") +
+  theme_minimal()
+```
+
+## **Interpretation of the PM2.5 Trend in Delhi**
+
+### **1. Seasonal Variation**
+- The **blue LOESS trend line** shows a **recurring U-shape pattern** every year.
+- PM2.5 levels are **lowest in mid-year (June–July)** and **highest around November–January**.
+- This suggests **seasonal pollution spikes in winter** and lower pollution during summer.
+
+### **2. Key Pollution Peaks (Marked with Vertical Lines)**
+- **November (Diwali season)** → Firecrackers, stubble burning, and cold weather cause PM2.5 spikes.
+- **January (Winter smog)** → Cold air traps pollutants closer to the ground, increasing pollution.
+
+These patterns **repeat annually**, confirming that pollution in Delhi follows a predictable cycle.
+
+---
+## **9. Monthly PM2.5 Levels as Heatmap**
+
+```{r pm2.5-heatmap}
+data_aqi %>%
+  mutate(month = lubridate::floor_date(date, "month")) %>%
+  group_by(month) %>%
+  summarise(pm2_5_avg = mean(pm2_5, na.rm = TRUE)) %>%
+  ggplot(aes(x = month, y = pm2_5_avg, fill = pm2_5_avg)) +
+  geom_tile(width = 20, height = 6) +
+  scale_fill_gradient(low = "green", high = "red") +
+  labs(title = "Monthly PM2.5 Levels in Delhi", x = "Month", y = "Average PM2.5") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+## Interpretation of the Plot
+
+1. **Title: "Monthly PM2.5 Levels in Delhi"**  
+   - The graph represents how PM2.5 levels have changed in Delhi over time.
+
+2. **X-axis (Month):**  
+   - Time is shown on the x-axis, ranging from early 2021 to early 2023.
+
+3. **Y-axis (Average PM2.5):**  
+   - The y-axis shows average PM2.5 concentration levels (in µg/m³).
+   - The values range from ~100 to 500, indicating significant variation in air pollution.
+
+4. **Color Gradient (Fill: PM2.5 Levels):**  
+   - The color scale represents PM2.5 levels:
+     - **Green → Low PM2.5 (~100 µg/m³, better air quality)**
+     - **Yellow-Orange → Moderate pollution (~200-300 µg/m³)**
+     - **Red → High pollution (~400-500 µg/m³, hazardous air quality)**
+
+5. **Observations:**  
+   - **High pollution months (Red/Orange):** Early 2021, Late 2022, Early 2023.
+   - **Low pollution months (Green):** Mid-2021, Mid-2022.
+   - This pattern suggests **seasonal variation**, where PM2.5 levels spike during winter months and drop in monsoon/summer due to rain and better air dispersion.
+
+## **10. Top 10 PM2.5 Pollution Days**
+
+```{r top-10-pm2.5}
+df_top10 <- data_aqi %>%
+  group_by(date) %>%
+  summarise(pm2_5 = max(pm2_5)) %>%
+  arrange(desc(pm2_5)) %>%
+  head(10)
+
+ggplot(df_top10, aes(x = reorder(date, pm2_5), y = pm2_5, fill = pm2_5)) +
+  geom_col(color = "black") +  
+  scale_fill_gradient(low = "yellow", high = "red") + 
+  labs(title = "Top 10 PM2.5 Pollution Days in Delhi", 
+       x = "Date", y = "PM2.5 Level") + 
+  geom_text(aes(label = round(pm2_5, 2)), vjust = -0.5, size = 5, fontface = "bold") +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.position = "right"
+  )
